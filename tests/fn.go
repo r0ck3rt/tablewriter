@@ -216,7 +216,7 @@ func normalizeHTMLStrict(s string) string {
 
 // visualCheckCaption (helper function, potentially shared or adapted from your existing visualCheck)
 // Ensure this helper normalizes expected and got strings for reliable comparison
-// (e.g., trim spaces from each line, normalize newlines)
+
 func visualCheckCaption(t *testing.T, testName, got, expected string) bool {
 	t.Helper()
 	normalize := func(s string) string {

@@ -172,7 +172,7 @@ func TestOceanTableStreaming_WithFooter(t *testing.T) {
 	oceanR := renderer.NewOcean()
 	oceanCfg := oceanR.Config() // Get mutable copy
 	oceanCfg.Settings.Lines.ShowFooterLine = tw.On
-	// (Ideally, NewOcean would take Rendition or there'd be an ApplyConfig method)
+
 	// For this test, we'll rely on modifying the default or creating a new one if easy
 	// For now, we assume the test setup in tablewriter.go will pass the correct config.
 	// This test will use the default Ocean config for ShowFooterLine (Off).

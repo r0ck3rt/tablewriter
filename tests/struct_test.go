@@ -91,8 +91,6 @@ func TestStructTableWithDB(t *testing.T) {
 		tablewriter.WithStringer(employeeStringer),
 	)
 
-	// Set the stringer for converting Employee structs
-
 	// Set header
 	table.Header([]string{"ID", "Name", "Age", "Department", "Salary"})
 
@@ -136,6 +134,7 @@ func TestStructTableWithDB(t *testing.T) {
 }
 
 func TestAutoHeaderScenarios(t *testing.T) {
+	// --- Legacy/Standard Structs ---
 	type Basic struct {
 		Foo int
 		Bar string
@@ -168,6 +167,41 @@ func TestAutoHeaderScenarios(t *testing.T) {
 		Value string
 	}
 
+	// --- 1. Alignment & Header Alignment Tests ---
+	type TWAlign struct {
+		LeftCol   string `tw:"name=Left Col, align=left, header_align=center"`
+		CenterCol string `tw:"name=Center Col, align=center, header_align=right"`
+		RightCol  string `tw:"name=Right Col, align=right, header_align=left"`
+	}
+
+	// --- 2. Advanced Padding Tests ---
+	type TWPadding struct {
+		PadA string `tw:"name=Pad A, pad_left=>, pad_right=<"`
+		PadB string `tw:"name=Pad B, pad_left=-, pad_right=-"`
+		PadC string `tw:"name=Pad C, pad_left=, pad_right=*"`
+	}
+
+	// --- 3. Per-Column Width Tests ---
+	type TWPerColumnMaxWidth struct {
+		Narrow string `tw:"name=Narrow, max_width=8, wrap=truncate"`
+		Medium string `tw:"name=Medium, max_width=12, wrap=truncate"`
+		Wide   string `tw:"name=Wide, max_width=16, wrap=truncate"`
+	}
+
+	// --- 4. Table-Wide Formatting Overrides ---
+	type TWTableWideOverrides struct {
+		Raw   string `tw:"name=my_raw_header, auto_format=false"`
+		Space string `tw:"name=Spaced, trim_space=false"`
+		Tab   string `tw:"name=Tabbed, trim_tab=false"`
+	}
+
+	// --- 5. Tag Fallbacks & Composites ---
+	type TWComposite struct {
+		A string `json:"json_name" tw:"align=right"`
+		B string `db:"db_name" tw:"-"`
+		C string `json:"ignore_me" tw:"name=tw_name"`
+	}
+
 	tests := []struct {
 		name       string
 		data       interface{}
@@ -175,6 +209,7 @@ func TestAutoHeaderScenarios(t *testing.T) {
 		preHeaders []string
 		expected   string
 	}{
+		// --- Legacy Tests ---
 		{
 			name:   "BasicStruct",
 			data:   []Basic{{1, "test", true}, {2, "test2", false}},
@@ -186,7 +221,6 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			│ 1   │ test  │
 			│ 2   │ test2 │
 			└─────┴───────┘
-
 `,
 		},
 		{
@@ -213,7 +247,6 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			│ keep   │
 			│ keep2  │
 			└────────┘
-
 `,
 		},
 		{
@@ -227,7 +260,6 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			│ val1    │
 			│ val2    │
 			└─────────┘
-
 `,
 		},
 		{
@@ -295,9 +327,7 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			├────┼──────┼──────────┤
 			│ 1  │ John │ NY       │
 			└────┴──────┴──────────┘
-
-
-`, // No header, falls back to string reps
+`,
 		},
 		{
 			name:   "Disabled",
@@ -307,8 +337,7 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			┌───┬──────┬────┐
 			│ 1 │ John │ NY │
 			└───┴──────┴────┘
-
-`, // No header, falls back to string reps
+`,
 		},
 		{
 			name:       "PreExistingHeaders",
@@ -321,7 +350,69 @@ func TestAutoHeaderScenarios(t *testing.T) {
             ├───────────┼─────────────┼─────────────┤
             │ 1         │ John        │ NY          │
             └───────────┴─────────────┴─────────────┘
+`,
+		},
 
+		// --- New 'tw' Tag Features Tests ---
+
+		{
+			name:   "TW_Alignment_Independence",
+			data:   []TWAlign{{"A", "B", "C"}},
+			enable: true,
+			expected: `
+			┌──────────┬────────────┬───────────┐
+			│ LEFT COL │ CENTER COL │ RIGHT COL │
+			├──────────┼────────────┼───────────┤
+			│ A        │     B      │         C │
+			└──────────┴────────────┴───────────┘
+`,
+		},
+		{
+			name:   "TW_Advanced_Padding",
+			data:   []TWPadding{{"1", "2", "3"}},
+			enable: true,
+			expected: `
+			┌───────┬───────┬──────┐
+			│>PAD A<│-PAD B-│PAD C*│
+			├───────┼───────┼──────┤
+			│>1<<<<<│-2-----│3*****│
+			└───────┴───────┴──────┘
+`,
+		},
+		{
+			name:   "TW_Per_Column_Max_Width",
+			data:   []TWPerColumnMaxWidth{{"LongTextHere", "LongTextHere", "LongTextHere"}},
+			enable: true,
+			expected: `
+			┌────────┬───────────┬──────────────┐
+			│ NARROW │  MEDIUM   │     WIDE     │
+			├────────┼───────────┼──────────────┤
+			│ Long…  │ LongText… │ LongTextHere │
+			└────────┴───────────┴──────────────┘
+`,
+		},
+		{
+			name:   "TW_Table_Wide_Formatting_Overrides",
+			data:   []TWTableWideOverrides{{"data", "  spaced  ", "\ttabbed\t"}},
+			enable: true,
+			expected: `
+			┌───────────────┬────────────┬────────────────┐
+			│ my_raw_header │   Spaced   │     Tabbed     │
+			├───────────────┼────────────┼────────────────┤
+			│ data          │   spaced   │     tabbed     │
+			└───────────────┴────────────┴────────────────┘
+`,
+		},
+		{
+			name:   "TW_Tag_Fallback_And_Composites",
+			data:   []TWComposite{{"A", "B", "C"}},
+			enable: true,
+			expected: `
+			┌───────────┬─────────┐
+			│ JSON NAME │ TW NAME │
+			├───────────┼─────────┤
+			│         A │ C       │
+			└───────────┴─────────┘
 `,
 		},
 	}
@@ -330,6 +421,8 @@ func TestAutoHeaderScenarios(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			table := tablewriter.NewTable(&buf)
+
+			// Always enable auto header for these tests
 			if tt.enable {
 				table.Configure(func(cfg *tablewriter.Config) {
 					cfg.Behavior.Structs.AutoHeader = tw.On
@@ -339,13 +432,62 @@ func TestAutoHeaderScenarios(t *testing.T) {
 			if len(tt.preHeaders) > 0 {
 				table.Header(tt.preHeaders)
 			}
+
 			err := table.Bulk(tt.data)
 			if err != nil {
 				t.Fatalf("Bulk failed: %v", err)
 			}
 			table.Render()
 
-			visualCheck(t, tt.name, buf.String(), tt.expected)
+			if !visualCheck(t, tt.name, buf.String(), tt.expected) {
+				t.Logf("Failed visual check. Output generated:\n%s", buf.String())
+			}
 		})
+	}
+}
+
+func TestTwTagMaxWidthAppliesOnFreshTable(t *testing.T) {
+	type Row struct {
+		Col string `tw:"max_width=5"`
+	}
+
+	var buf bytes.Buffer
+	table := tablewriter.NewTable(&buf)
+	table.Configure(func(cfg *tablewriter.Config) {
+		cfg.Behavior.Structs.AutoHeader = tw.On
+	})
+
+	if err := table.Bulk([]Row{{"abcdefgh"}}); err != nil {
+		t.Fatalf("Bulk failed: %v", err)
+	}
+
+	cfg := table.Config()
+	width, ok := cfg.Row.ColMaxWidths.PerColumn.OK(0)
+	if !ok || width != 5 {
+		t.Fatalf("expected Row.ColMaxWidths.PerColumn[0] == 5, got ok=%v width=%v (max_width tag did not apply)", ok, width)
+	}
+}
+
+func TestTwTagSkipDoesNotLeakConfigToNextColumn(t *testing.T) {
+	type Row struct {
+		Hidden string `tw:"align=right,-"`
+		Kept   string
+	}
+
+	var buf bytes.Buffer
+	table := tablewriter.NewTable(&buf)
+	table.Configure(func(cfg *tablewriter.Config) {
+		cfg.Behavior.Structs.AutoHeader = tw.On
+	})
+
+	if err := table.Bulk([]Row{{"x", "y"}}); err != nil {
+		t.Fatalf("Bulk failed: %v", err)
+	}
+
+	cfg := table.Config()
+	for i, a := range cfg.Row.Alignment.PerColumn {
+		if a == tw.AlignRight {
+			t.Fatalf("column %d unexpectedly inherited the skipped field's right alignment: %#v", i, cfg.Row.Alignment.PerColumn)
+		}
 	}
 }
