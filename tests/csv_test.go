@@ -216,7 +216,7 @@ func TestTable_Options_WithRendition_PartialUpdate(t *testing.T) {
 	var buf bytes.Buffer
 	csvReader := getCSVReaderFromStringForPartialUpdate(csvTestDataForPartialUpdate)
 
-	// 1. Define an explicitly borderless and line-less initial rendition
+	// Define an explicitly borderless and line-less initial rendition
 	initiallyAllOffRendition := tw.Rendition{
 		Borders: tw.Border{
 			Left:   tw.Off,
@@ -300,7 +300,7 @@ func TestTable_Options_WithRendition_PartialUpdate(t *testing.T) {
 		t.Logf("Debug trace from table after partial update:\n%s", table.Debug().String())
 	}
 
-	// 3. Verify the renderer's internal configuration reflects the partial update correctly.
+	// Verify the renderer's internal configuration reflects the partial update correctly.
 	if bp, ok := table.Renderer().(*renderer.Blueprint); ok {
 		currentRendererCfg := bp.Config()
 

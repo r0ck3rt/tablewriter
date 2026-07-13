@@ -694,3 +694,123 @@ func TestMergeCellConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestParseTwAlign(t *testing.T) {
+	tbl := NewTable(nil)
+	cases := map[string]tw.Align{
+		"center": tw.AlignCenter,
+		"CENTER": tw.AlignCenter,
+		"left":   tw.AlignLeft,
+		"right":  tw.AlignRight,
+		"":       tw.AlignDefault,
+		"bogus":  tw.AlignDefault,
+	}
+	for in, want := range cases {
+		if got := tbl.parseTwAlign(in); got != want {
+			t.Errorf("parseTwAlign(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestParseTwState(t *testing.T) {
+	tbl := NewTable(nil)
+	cases := map[string]tw.State{
+		"true":  tw.On,
+		"TRUE":  tw.On,
+		"false": tw.Off,
+		"":      tw.Off,
+		"bogus": tw.Off,
+	}
+	for in, want := range cases {
+		if got := tbl.parseTwState(in); got != want {
+			t.Errorf("parseTwState(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
+
+func TestSetTwColumnAlignmentUnknownPositionIsNoop(t *testing.T) {
+	tbl := NewTable(nil)
+	tbl.setTwColumnAlignment(tw.Position("bogus"), 0, tw.AlignCenter)
+
+	if len(tbl.config.Header.Alignment.PerColumn) != 0 {
+		t.Errorf("Header.Alignment.PerColumn should be untouched, got %#v", tbl.config.Header.Alignment.PerColumn)
+	}
+	if len(tbl.config.Row.Alignment.PerColumn) != 0 {
+		t.Errorf("Row.Alignment.PerColumn should be untouched, got %#v", tbl.config.Row.Alignment.PerColumn)
+	}
+	if len(tbl.config.Footer.Alignment.PerColumn) != 0 {
+		t.Errorf("Footer.Alignment.PerColumn should be untouched, got %#v", tbl.config.Footer.Alignment.PerColumn)
+	}
+}
+
+func TestExtractFieldsAndValuesFromStruct_NilPointer(t *testing.T) {
+	tbl := NewTable(nil)
+	type S struct{ A string }
+
+	var nilPtr *S
+	headers, values := tbl.extractFieldsAndValuesFromStruct(nilPtr)
+	if headers != nil || values != nil {
+		t.Errorf("expected nil, nil for a nil pointer, got headers=%#v values=%#v", headers, values)
+	}
+}
+
+func TestExtractFieldsAndValuesFromStruct_NonStruct(t *testing.T) {
+	tbl := NewTable(nil)
+	headers, values := tbl.extractFieldsAndValuesFromStruct(42)
+	if headers != nil || values != nil {
+		t.Errorf("expected nil, nil for a non-struct input, got headers=%#v values=%#v", headers, values)
+	}
+}
+
+func TestTwTagBareKeyPartIsIgnored(t *testing.T) {
+	type Row struct {
+		Col string `tw:"bareword,name=Visible"`
+	}
+
+	tbl := NewTable(nil)
+	tbl.Configure(func(cfg *Config) {
+		cfg.Behavior.Structs.AutoHeader = tw.On
+	})
+
+	headers := tbl.extractHeadersFromStruct(Row{Col: "x"})
+	if len(headers) != 1 || headers[0] != "Visible" {
+		t.Errorf("expected a single header %q, got %#v", "Visible", headers)
+	}
+}
+
+func TestTwTagWrapAllModes(t *testing.T) {
+	type RowNone struct {
+		Col string `tw:"wrap=none"`
+	}
+	type RowNormal struct {
+		Col string `tw:"wrap=normal"`
+	}
+	type RowTruncate struct {
+		Col string `tw:"wrap=truncate"`
+	}
+	type RowBreak struct {
+		Col string `tw:"wrap=break"`
+	}
+
+	cases := []struct {
+		token string
+		row   interface{}
+		want  int
+	}{
+		{"none", RowNone{Col: "x"}, tw.WrapNone},
+		{"normal", RowNormal{Col: "x"}, tw.WrapNormal},
+		{"truncate", RowTruncate{Col: "x"}, tw.WrapTruncate},
+		{"break", RowBreak{Col: "x"}, tw.WrapBreak},
+	}
+
+	for _, c := range cases {
+		tbl := NewTable(nil)
+		tbl.Configure(func(cfg *Config) {
+			cfg.Behavior.Structs.AutoHeader = tw.On
+		})
+		tbl.extractFieldsAndValuesFromStruct(c.row)
+		if got := tbl.config.Row.Formatting.AutoWrap; got != c.want {
+			t.Errorf("wrap=%s: AutoWrap = %v, want %v", c.token, got, c.want)
+		}
+	}
+}
